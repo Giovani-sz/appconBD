@@ -1,69 +1,99 @@
 import 'dart:io';
-
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import '../models/task_model.dart';
 
-class DBAdmin{
-
-
+class DBAdmin {
   Database? myDatabase;
-
-  //Singleton
-  static final DBAdmin db= DBAdmin._();
+  static final DBAdmin db = DBAdmin._();
   DBAdmin._();
 
-//
-
-  Future <Database?> checkDatabase() async{
-if (myDatabase != null){
-return myDatabase;
-}
-myDatabase = await initDatabase();
-return myDatabase;
+  Future<Database?> checkDataBase() async {
+    if (myDatabase != null) {
+      return myDatabase;
+    }
+    myDatabase = await initDatabase();
+    return myDatabase;
   }
 
-Future <Database>initDatabase() async {
-Directory directory = await getApplicationDocumentsDirectory();
-String path =join(directory.path, "TaskBD.db");
-return await openDatabase(
-  path,
-  version: 1,
-  onOpen: (db){},
-  onCreate: (Database dbx, int version) async{
-    //crear tabla correspondiente
-await dbx.execute(" CREATE TABLE TASK(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, status TEXT)");
-
+  Future<Database> initDatabase() async {
+    Directory directory = await getApplicationDocumentsDirectory();
+    String path = join(directory.path, "TaskDB.db");
+    return await openDatabase(path, version: 1, onOpen: (db) {},
+        onCreate: (Database dbx, int version) async {
+      await dbx.execute(
+          'CREATE TABLE Task(id INTEGER PRIMARY KEY, titulo TEXT, description TEXT,status TEXT)');
+    });
   }
-);
-}
-insertRawTask () async {
-Database? db = await checkDatabase();
-int res = await db!.rawInsert("INSERT INTO TASK(title, description, status) VALUES ('ir de compras','Tenemos que ir a tottus','false')");
-print(res);
 
+  Future<int> insertRawTask(
+      String titulo, String description, bool status) async {
+    // añadiendo parametros
+    Database? db = await checkDataBase();
+    int res = await db!.rawInsert(
+        "INSERT INTO Task(titulo,description,status) VALUES ('$titulo','$description','$status')");
+    return res;
+  }
 
-}
-Future<List<Map<String, dynamic>>> getTasks() async{
-Database? db = await checkDatabase();
-List<Map<String, dynamic>> tasks = await db!.query("Task");
-return tasks;
-}
+  Future<int> insertTask(TaskModel model) async {
+    Database? db = await checkDataBase();
+    int res = await db!.insert("Task", {
+      "titulo": model.titulo,
+      "description": model.description,
+      "status": model.status.toString(),
+    });
 
+    return res;
+  }
 
-updateRawTask() async {
-  Database? db = await checkDatabase();
-int res= await db!.rawUpdate("UPDATE TASK SET title = 'ir de compras', description = 'comprar comida', status = 'true' WHERE id = 2");
-print (res);
-}
+  getRawTasks() async {
+    Database? db = await checkDataBase();
+    List tasks = await db!.rawQuery("SELECT * FROM Task");
+    print(tasks);
+  }
 
-deleteRawTask() async {
-  Database? db = await checkDatabase();
+  Future<List<TaskModel>> getTasks() async {
+    Database? db = await checkDataBase();
+    List<Map<String, dynamic>> tasks = await db!.query("Task");
+    List<TaskModel> taskModelList =
+        tasks.map((e) => TaskModel.deMapAModel(e)).toList();
+    // tasks.forEach((element) {
+    //  TaskModel task = TaskModel.deMapAModel(element);
+    //  taskModelList.add(task);
+    //  });
 
-int res = await db!.rawDelete("DELETE FROM TASK WHERE id 2");
-print (res);
+    return taskModelList;
+  }
 
-}
+  updateRawTask() async {
+    Database? db = await checkDataBase();
+    int res = await db!.rawUpdate(
+        "UPDATE TASK SET titulo='Ir de compras', description='comprar comida ',status='true' WHERE id=2");
+    print(res);
+  }
 
+  updateTask() async {
+    Database? db = await checkDataBase();
+    int res = await db!.update(
+        "TASK",
+        {
+          "title": "Ir al cine",
+          "description": "Es el viernes en la tarde",
+          "status": "false",
+        },
+        where: "id = 2");
+  }
 
+  deleteRawtask() async {
+    Database? db = await checkDataBase();
+    int res = await db!.rawDelete("DELETE FROM Task WHERE id = 2");
+    print(res);
+  }
+
+  Future<int> deleteTask(int id) async {
+    Database? db = await checkDataBase();
+    int res = await db!.delete("Task", where: "id = $id");
+    return res;
+  }
 }
